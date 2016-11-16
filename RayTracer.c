@@ -528,6 +528,9 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
   //RecursionVariables
   double recursionPosition[3];
   double recursionLookUVector[3];
+  double refractionContribution[3];
+  double reflectivityValue = 0;
+  
   Pixel returnColor;
   returnColor.red = 0;
   returnColor.green = 0;
@@ -626,7 +629,6 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
        tempPixel.red = 0;
        tempPixel.green = 0;
        tempPixel.red = 0;
-       //printf("\n===== End Shading =====\n\n");
        return tempPixel;
      }
      // If there was an intersection
@@ -711,13 +713,9 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
          }
          // There was no shadow, color it.
          if (sentinel == 2) {
-           //printf("\nColoring location\n");
-           // Calculate radial attenuation function
            double fRad = 1 / (scene.light[lightIndex].radialA2 * pow(lightVectorT,2) +
                               scene.light[lightIndex].radialA1 * lightVectorT +
                               scene.light[lightIndex].radialA0);
-
-           //printf("fRad %f\n", fRad);
 
            // Calculate Diffuse Color Contribution
            double incidentDiffuse[3];
@@ -754,9 +752,6 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
              vDotR = 0;
            }
 
-           // if spot light
-             // if vodotvl < theta then 0
-             //vdotvl^a1
            double fAng = 1;
            if (scene.light[lightIndex].theta != 0) {
              double vDotL = dotProduct(lightUnitVector, scene.light[lightIndex].direction);
@@ -773,42 +768,34 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
            incidentSpecular[1] = vDotR * scene.light[lightIndex].color[1] * scene.object[objectIndexClosest].specularColor[1];
            incidentSpecular[2] = vDotR * scene.light[lightIndex].color[2] * scene.object[objectIndexClosest].specularColor[2];
 
+           reflectivityValue = scene.object[objectIndexClosest].reflectivity;
            // Color that point
-           if (recursionLevel == RECURSIONLEVEL) {
-             returnColor.red   += fAng * fRad * (incidentDiffuse[0] + incidentSpecular[0]);
-             returnColor.green += fAng * fRad * (incidentDiffuse[1] + incidentSpecular[1]);
-             returnColor.blue  += fAng * fRad * (incidentDiffuse[2] + incidentSpecular[2]);
-           }
-           else {
-             //printf("RecursionColorAttributionCalculation\n");
-             returnColor.red   += fAng * fRad * (incidentDiffuse[0] + incidentSpecular[0]) * scene.object[objectIndexClosest].reflectivity;
-             returnColor.green += fAng * fRad * (incidentDiffuse[1] + incidentSpecular[1]) * scene.object[objectIndexClosest].reflectivity;
-             returnColor.blue  += fAng * fRad * (incidentDiffuse[2] + incidentSpecular[2]) * scene.object[objectIndexClosest].reflectivity;
-             //printf("Testing [%f,%f,%f]\n", returnColor.red, returnColor.green, returnColor.blue);
-             //printf("Testing Incident [%f,%f,%f]\n", incidentSpecular[0], incidentSpecular[1], incidentSpecular[2]);
-             //printf("Testing Diffuse [%f,%f,%f]\n", incidentDiffuse[0], incidentDiffuse[1], incidentDiffuse[2]);
-           }
-           //printf("Testing Diffuse %d [%f, %f, %f]\n", recursionLevel, incidentDiffuse[0], incidentDiffuse[1], incidentDiffuse[2]);
-           //printf("Testing Specular %d [%f, %f, %f]\n", recursionLevel, incidentSpecular[0], incidentSpecular[1], incidentSpecular[2]);
-
-         }
-         // There was a shadowing, do nothing.
-         else {
-           //printf("Not coloring pixel %d\n", pixelIndex);
-           // Coloring ambient, temporary
+           returnColor.red   += fAng * fRad * (incidentDiffuse[0] + incidentSpecular[0]);
+           returnColor.green += fAng * fRad * (incidentDiffuse[1] + incidentSpecular[1]);
+           returnColor.blue  += fAng * fRad * (incidentDiffuse[2] + incidentSpecular[2]);
          }
          lightIndex++;
        }
      }
    }
   Pixel tempColor;
-  //printf("Testing Return Color Before Recursion %d [%f, %f, %f]\n", recursionLevel, returnColor.red, returnColor.green, returnColor.blue);
+
+  // Recurse Reflection
   tempColor = shade(recursionPosition, recursionLookUVector, recursionLevel - 1);
-  returnColor.red += tempColor.red;
-  returnColor.green += tempColor.green;
-  returnColor.blue += tempColor.blue;
-  //printf("\n===== End Shading =====\n\n");
-  //printf("RecursionLevel %d -- color [%f, %f, %f]\n", recursionLevel, returnColor.red, returnColor.green, returnColor.blue);
+  if (recursionLevel == RECURSIONLEVEL) {
+    returnColor.red =   (tempColor.red   + returnColor.red  );
+    returnColor.green = (tempColor.green + returnColor.green);
+    returnColor.blue =  (tempColor.blue  + returnColor.blue );
+  }
+  else {
+    returnColor.red =   (tempColor.red   + returnColor.red  ) * reflectivityValue;
+    returnColor.green = (tempColor.green + returnColor.green) * reflectivityValue;
+    returnColor.blue =  (tempColor.blue  + returnColor.blue ) * reflectivityValue;
+  }
+
+  //Recurse refraction
+
+
   return returnColor;
 }
 
