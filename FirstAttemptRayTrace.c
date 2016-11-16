@@ -515,7 +515,7 @@ void raycast() {
      Pixel finalColor;
 
      finalColor = shade(startPosition, lookUVector, RECURSIONLEVEL);
-     printf("FinalColor [%f, %f, %f]\n\n\n", finalColor.red, finalColor.green, finalColor.blue);
+     //printf("FinalColor [%f, %f, %f]\n\n\n", finalColor.red, finalColor.green, finalColor.blue);
      viewPlane[pixelIndex] = finalColor;
      //printf("ViewPlane %d: [%f, %f, %f]\n", pixelIndex, viewPlane[pixelIndex].red, viewPlane[pixelIndex].green, viewPlane[pixelIndex].blue);
    }
@@ -524,7 +524,7 @@ void raycast() {
 }
 
 struct Pixel shade(double *startPosition, double *lookUVector, int recursionLevel) {
-  printf("\n\n===== Begin Shading =====\n");
+  //printf("\n\n===== Begin Shading =====\n");
   //RecursionVariables
   double recursionPosition[3];
   double recursionLookUVector[3];
@@ -532,9 +532,9 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
   returnColor.red = 0;
   returnColor.green = 0;
   returnColor.blue = 0;
-  printf("Recursion Level %d\n", recursionLevel);
-  printf("StartPosition [%f, %f, %f]\n", startPosition[0], startPosition[1], startPosition[2]);
-  printf("lookUVector [%f, %f, %f]\n", lookUVector[0], lookUVector[1], lookUVector[2]);
+  //printf("Recursion Level %d\n", recursionLevel);
+  //printf("StartPosition [%f, %f, %f]\n", startPosition[0], startPosition[1], startPosition[2]);
+  //printf("lookUVector [%f, %f, %f]\n", lookUVector[0], lookUVector[1], lookUVector[2]);
 
   if (recursionLevel == 0) {
     //printf("End Recursion\n\n");
@@ -774,12 +774,12 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
            incidentSpecular[2] = vDotR * scene.light[lightIndex].color[2] * scene.object[objectIndexClosest].specularColor[2];
 
            // Color that point
-           //if (recursionLevel == RECURSIONLEVEL) {
+           if (recursionLevel == RECURSIONLEVEL) {
              returnColor.red   += fAng * fRad * (incidentDiffuse[0] + incidentSpecular[0]);
              returnColor.green += fAng * fRad * (incidentDiffuse[1] + incidentSpecular[1]);
              returnColor.blue  += fAng * fRad * (incidentDiffuse[2] + incidentSpecular[2]);
-           //}
-           /*else {
+           }
+           else {
              //printf("RecursionColorAttributionCalculation\n");
              returnColor.red   += fAng * fRad * (incidentDiffuse[0] + incidentSpecular[0]) * scene.object[objectIndexClosest].reflectivity;
              returnColor.green += fAng * fRad * (incidentDiffuse[1] + incidentSpecular[1]) * scene.object[objectIndexClosest].reflectivity;
@@ -787,7 +787,7 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
              //printf("Testing [%f,%f,%f]\n", returnColor.red, returnColor.green, returnColor.blue);
              //printf("Testing Incident [%f,%f,%f]\n", incidentSpecular[0], incidentSpecular[1], incidentSpecular[2]);
              //printf("Testing Diffuse [%f,%f,%f]\n", incidentDiffuse[0], incidentDiffuse[1], incidentDiffuse[2]);
-           }*/
+           }
            //printf("Testing Diffuse %d [%f, %f, %f]\n", recursionLevel, incidentDiffuse[0], incidentDiffuse[1], incidentDiffuse[2]);
            //printf("Testing Specular %d [%f, %f, %f]\n", recursionLevel, incidentSpecular[0], incidentSpecular[1], incidentSpecular[2]);
 
@@ -802,13 +802,13 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
      }
    }
   Pixel tempColor;
-  printf("Testing Return Color Before Recursion %d [%f, %f, %f]\n", recursionLevel, returnColor.red, returnColor.green, returnColor.blue);
+  //printf("Testing Return Color Before Recursion %d [%f, %f, %f]\n", recursionLevel, returnColor.red, returnColor.green, returnColor.blue);
   tempColor = shade(recursionPosition, recursionLookUVector, recursionLevel - 1);
   returnColor.red += tempColor.red;
   returnColor.green += tempColor.green;
   returnColor.blue += tempColor.blue;
   //printf("\n===== End Shading =====\n\n");
-  printf("RecursionLevel %d -- color [%f, %f, %f]\n", recursionLevel, returnColor.red, returnColor.green, returnColor.blue);
+  //printf("RecursionLevel %d -- color [%f, %f, %f]\n", recursionLevel, returnColor.red, returnColor.green, returnColor.blue);
   return returnColor;
 }
 
