@@ -83,7 +83,7 @@ void reflectionVector(double *lightVector, double *normal, double *reflectionVec
 
 // Global Variables
 int line  = 1;
-int RECURSIONLEVEL = 1;
+int RECURSIONLEVEL = 2;
 Scene scene;
 int pixWidth;
 int pixHeight;
@@ -107,7 +107,7 @@ int main(int c, char** argv) {
  raycast();
 
  //displayViewPlane();
- writePpmImage(fileOutput, 6);
+ writePpmImage(fileOutput, 3);
 
  printf("===== End Program =====\n");
  return 0;
@@ -514,17 +514,17 @@ void raycast() {
      startPosition[2] = 0;
      Pixel finalColor;
 
-     finalColor = shade(startPosition, lookVector, RECURSIONLEVEL);
-
+     finalColor = shade(startPosition, lookUVector, RECURSIONLEVEL);
+     printf("FinalColor [%f, %f, %f]\n\n\n", finalColor.red, finalColor.green, finalColor.blue);
      viewPlane[pixelIndex] = finalColor;
-     printf("ViewPlane %d: [%f, %f, %f]\n", pixelIndex, viewPlane[pixelIndex].red, viewPlane[pixelIndex].green, viewPlane[pixelIndex].blue);
+     //printf("ViewPlane %d: [%f, %f, %f]\n", pixelIndex, viewPlane[pixelIndex].red, viewPlane[pixelIndex].green, viewPlane[pixelIndex].blue);
    }
  }
  printf("\n===== End Raycasting =====\n\n");
 }
 
 struct Pixel shade(double *startPosition, double *lookUVector, int recursionLevel) {
-  printf("\n===== Begin Shading =====\n\n");
+  printf("\n\n===== Begin Shading =====\n");
   //RecursionVariables
   double recursionPosition[3];
   double recursionLookUVector[3];
@@ -532,13 +532,17 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
   returnColor.red = 0;
   returnColor.green = 0;
   returnColor.blue = 0;
-  //printf("Recursion Level %d\n", recursionLevel);
+  printf("Recursion Level %d\n", recursionLevel);
+  printf("StartPosition [%f, %f, %f]\n", startPosition[0], startPosition[1], startPosition[2]);
+  printf("lookUVector [%f, %f, %f]\n", lookUVector[0], lookUVector[1], lookUVector[2]);
+
   if (recursionLevel == 0) {
     //printf("End Recursion\n\n");
     Pixel black;
     black.red = 0;
     black.green = 0;
     black.blue = 0;
+    //printf("\n===== End Shading =====\n\n");
     return black;
   }
   else {
@@ -551,6 +555,7 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
      backgroundColor[1] = 0.0;
      backgroundColor[2] = 0.0;
 
+
      // Loop through objects in scene and solve for t
      int index = 0;
      double minT = -1;
@@ -560,14 +565,16 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
        // If object is sphere
        if (strcmp(scene.object[index].type,"sphere") == 0) {
          // Get distance of closest approach to sphere
-         double t = tClosestApproachSphere(lookUVector, scene.object[index].position);
+         double temporaryObjectPosition[3];
+         vectorSubtract(scene.object[index].position, startPosition, temporaryObjectPosition);
+         double t = tClosestApproachSphere(lookUVector, temporaryObjectPosition);
 
          // Use t to get the point at t from origin
          double tPosition[3];
          vectorMultiply(lookUVector, tPosition, t);
 
          // Solve for the distance between the closest approach and the center of the sphere
-         double dist = distance(tPosition, scene.object[index].position);
+         double dist = distance(tPosition, temporaryObjectPosition);
 
          if (dist < scene.object[index].radius) {
            tClosestApproachMinusA = t - sqrt(pow(scene.object[index].radius,2) -
@@ -576,7 +583,13 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
            // Found a new closest object
            if (t > 0 && (minT <= 0 || tClosestApproachMinusA <= minT)) {
              minT = tClosestApproachMinusA;
+             //printf("Calculating recursionVariables\n");
              vectorMultiply(lookUVector, cameraIntersection, tClosestApproachMinusA);
+             vectorMultiply(lookUVector, recursionPosition, tClosestApproachMinusA);
+             double normal[3];
+             vectorSubtract(cameraIntersection, temporaryObjectPosition, normal);
+             reflectionVector(lookUVector, normal, recursionLookUVector);
+             //printf("Sphere Testing Recursion Look Vector [%f, %f, %f]\n", recursionLookUVector[0], recursionLookUVector[1], recursionLookUVector[2]);
              objectIndexClosest = index;
            }
          }
@@ -585,10 +598,17 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
        else if (strcmp(scene.object[index].type,"plane") == 0) {
          //printf("Found a plane\n");
          // Get T Closest approach to plane
-         double t = tClosestApproachPlane(scene.object[index].normal, origin, scene.object[index].position, lookUVector);
+         double temporaryObjectPosition[3];
+         vectorSubtract(scene.object[index].position, startPosition, temporaryObjectPosition);
+         double t = tClosestApproachPlane(scene.object[index].normal, origin, temporaryObjectPosition, lookUVector);
          if (t > 0 && (minT <= 0 || t <= minT)) {
            minT = t;
+           //printf("Calculating recursionVariables\n");
            vectorMultiply(lookUVector, cameraIntersection, t);
+           vectorMultiply(lookUVector, recursionPosition, t);
+           reflectionVector(lookUVector, scene.object[index].normal, recursionLookUVector);
+           //printf("Plane Testing Recursion Look Vector [%f, %f, %f]\n", recursionLookUVector[0], recursionLookUVector[1], recursionLookUVector[2]);
+
            objectIndexClosest = index;
          }
          index++;
@@ -601,10 +621,12 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
      }
      // If there was no intersection
      if (minT == -1) {
+       //printf("NoIntersection\n");
        Pixel tempPixel;
        tempPixel.red = 0;
        tempPixel.green = 0;
        tempPixel.red = 0;
+       //printf("\n===== End Shading =====\n\n");
        return tempPixel;
      }
      // If there was an intersection
@@ -619,7 +641,9 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
        while (scene.light[lightIndex].color != NULL) {
          // Calculate distance from light to intersection
          double lightVector[3];
-         vectorSubtract(cameraIntersection, scene.light[lightIndex].position, lightVector);
+         double temporaryLightPosition[3];
+         vectorSubtract(scene.light[lightIndex].position, startPosition, temporaryLightPosition);
+         vectorSubtract(cameraIntersection, temporaryLightPosition, lightVector);
 
          // Calculate unit vector
          double lightUnitVector[3];
@@ -644,7 +668,9 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
 
                // Calculate t of closest approach
                double shadowObjectPosition[3];
-               vectorSubtract(scene.object[shadowIndex].position, scene.light[lightIndex].position, shadowObjectPosition);
+               double temporaryLightPositionShadow[3];
+               vectorSubtract(scene.object[shadowIndex].position, startPosition, temporaryLightPositionShadow);
+               vectorSubtract(temporaryLightPositionShadow, temporaryLightPosition, shadowObjectPosition);
                t = tClosestApproachSphere(lightUnitVector, shadowObjectPosition);
 
                // Calculate that point;
@@ -665,7 +691,9 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
              }
              else if (strcmp(scene.object[shadowIndex].type, "plane") == 0) {
                double shadowObjectPosition[3];
-               vectorSubtract(scene.object[shadowIndex].position, scene.light[lightIndex].position, shadowObjectPosition);
+               double temporaryLightPositionShadow[3];
+               vectorSubtract(scene.object[shadowIndex].position, startPosition, temporaryLightPositionShadow);
+               vectorSubtract(temporaryLightPositionShadow, temporaryLightPosition, shadowObjectPosition);
                t = tClosestApproachPlane(scene.object[shadowIndex].normal, origin, shadowObjectPosition, lightUnitVector);
 
              }
@@ -696,7 +724,9 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
            double normal[3];
            // Calculate normal differently for spheres and planes
            if (strcmp(scene.object[objectIndexClosest].type, "sphere") == 0 ) {
-             vectorSubtract(cameraIntersection, scene.object[objectIndexClosest].position, normal);
+             double temporaryObjectPosition[3];
+             vectorSubtract(scene.object[objectIndexClosest].position, startPosition, temporaryObjectPosition);
+             vectorSubtract(cameraIntersection, temporaryObjectPosition, normal);
            }
            else if (strcmp(scene.object[objectIndexClosest].type, "plane") == 0 ) {
              normal[0] = scene.object[objectIndexClosest].normal[0];
@@ -704,11 +734,12 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
              normal[2] = scene.object[objectIndexClosest].normal[2];
            }
            unitVector(normal, normal);
+           //printf("normal %f %f %f\n", normal[0], normal[1], normal[2]);
            double dotDiffuse = -1 * dotProduct(lightUnitVector, normal);
            incidentDiffuse[0] = dotDiffuse * scene.light[lightIndex].color[0] * scene.object[objectIndexClosest].diffuseColor[0];
            incidentDiffuse[1] = dotDiffuse * scene.light[lightIndex].color[1] * scene.object[objectIndexClosest].diffuseColor[1];
            incidentDiffuse[2] = dotDiffuse * scene.light[lightIndex].color[2] * scene.object[objectIndexClosest].diffuseColor[2];
-           //printf("Diffusion [%f. %f, %f]\n", incidentDiffuse[0], incidentDiffuse[1], incidentDiffuse[2]);
+           //printf("Diffusion %d [%f. %f, %f]\n", recursionLevel, incidentDiffuse[0], incidentDiffuse[1], incidentDiffuse[2]);
 
            // Calculate Specular Color Contribution
            double incidentSpecular[3];
@@ -743,9 +774,23 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
            incidentSpecular[2] = vDotR * scene.light[lightIndex].color[2] * scene.object[objectIndexClosest].specularColor[2];
 
            // Color that point
-           returnColor.red   += fAng * fRad * (incidentDiffuse[0] + incidentSpecular[0]);
-           returnColor.green += fAng * fRad * (incidentDiffuse[1] + incidentSpecular[1]);
-           returnColor.blue  += fAng * fRad * (incidentDiffuse[2] + incidentSpecular[2]);
+           //if (recursionLevel == RECURSIONLEVEL) {
+             returnColor.red   += fAng * fRad * (incidentDiffuse[0] + incidentSpecular[0]);
+             returnColor.green += fAng * fRad * (incidentDiffuse[1] + incidentSpecular[1]);
+             returnColor.blue  += fAng * fRad * (incidentDiffuse[2] + incidentSpecular[2]);
+           //}
+           /*else {
+             //printf("RecursionColorAttributionCalculation\n");
+             returnColor.red   += fAng * fRad * (incidentDiffuse[0] + incidentSpecular[0]) * scene.object[objectIndexClosest].reflectivity;
+             returnColor.green += fAng * fRad * (incidentDiffuse[1] + incidentSpecular[1]) * scene.object[objectIndexClosest].reflectivity;
+             returnColor.blue  += fAng * fRad * (incidentDiffuse[2] + incidentSpecular[2]) * scene.object[objectIndexClosest].reflectivity;
+             //printf("Testing [%f,%f,%f]\n", returnColor.red, returnColor.green, returnColor.blue);
+             //printf("Testing Incident [%f,%f,%f]\n", incidentSpecular[0], incidentSpecular[1], incidentSpecular[2]);
+             //printf("Testing Diffuse [%f,%f,%f]\n", incidentDiffuse[0], incidentDiffuse[1], incidentDiffuse[2]);
+           }*/
+           //printf("Testing Diffuse %d [%f, %f, %f]\n", recursionLevel, incidentDiffuse[0], incidentDiffuse[1], incidentDiffuse[2]);
+           //printf("Testing Specular %d [%f, %f, %f]\n", recursionLevel, incidentSpecular[0], incidentSpecular[1], incidentSpecular[2]);
+
          }
          // There was a shadowing, do nothing.
          else {
@@ -756,9 +801,15 @@ struct Pixel shade(double *startPosition, double *lookUVector, int recursionLeve
        }
      }
    }
-  shade(startPosition, lookUVector, recursionLevel - 1);
+  Pixel tempColor;
+  printf("Testing Return Color Before Recursion %d [%f, %f, %f]\n", recursionLevel, returnColor.red, returnColor.green, returnColor.blue);
+  tempColor = shade(recursionPosition, recursionLookUVector, recursionLevel - 1);
+  returnColor.red += tempColor.red;
+  returnColor.green += tempColor.green;
+  returnColor.blue += tempColor.blue;
+  //printf("\n===== End Shading =====\n\n");
+  printf("RecursionLevel %d -- color [%f, %f, %f]\n", recursionLevel, returnColor.red, returnColor.green, returnColor.blue);
   return returnColor;
-  printf("\n===== End Shading =====\n\n");
 }
 
 void displayViewPlane() {
