@@ -83,7 +83,7 @@ void reflectionVector(double *lightVector, double *normal, double *reflectionVec
 
 // Global Variables
 int line  = 1;
-int RECURSIONLEVEL = 2;
+int RECURSIONLEVEL = 4;
 Scene scene;
 int pixWidth;
 int pixHeight;
